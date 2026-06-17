@@ -1,2 +1,7 @@
 .github_ssh/
+.codex_github_ssh/
+.sshkeys/
+.codex_git_ssh/
+.github-ssh/
 gcm-diagnose.log
+*.log
