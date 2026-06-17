@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLB Personal Hero</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #111827;
+      --muted: #5d6674;
+      --line: rgba(17, 24, 39, .14);
+      --accent: #ff3d24;
+      --accent-2: #111111;
+      --paper: #f6f7f1;
+      --panel: rgba(255, 255, 255, .7);
+      --panel-strong: rgba(255, 255, 255, .9);
+      --dark: #111827;
+      --model-scale: 4.5;
+      --model-x: .06;
+      --model-y: -.04;
+      --model-yaw: -.18;
+      --model-pitch: .035;
+      --camera-pad: .74;
+      --camera-y: .02;
+      --camera-target-y: .04;
+      --camera-use-head: 0;
+      --camera-head-offset-y: -.08;
+      --key-light-intensity: 3.2;
+      --fill-light-intensity: .75;
+      --model-tint: transparent;
+      --model-tint-opacity: 0;
+      --model-tint-blend: normal;
+      --head-yaw: .34;
+      --head-pitch: .22;
+      --neck-yaw: .32;
+      --neck-pitch: .22;
+      --display: Inter, "Segoe UI", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      min-height: 100%;
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--display);
+    }
+    body { overflow-x: hidden; }
+    .site-top {
+      position: absolute;
+      z-index: 8;
+      top: 22px;
+      left: 50%;
+      width: min(1180px, calc(100vw - 40px));
+      translate: -50% 0;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+      color: color-mix(in srgb, var(--ink) 74%, transparent);
+      font: 700 12px/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .site-top span:nth-child(2) {
+      padding: 9px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel-strong) 82%, transparent);
+      backdrop-filter: blur(16px);
+    }
+    .site-top span:last-child { justify-self: end; }
+    .hero {
+      position: relative;
+      min-height: 94vh;
+      isolation: isolate;
+      display: grid;
+      align-items: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--paper) 98%, transparent) 0%, color-mix(in srgb, var(--paper) 82%, transparent) 42%, color-mix(in srgb, var(--accent) 18%, transparent) 100%),
+        radial-gradient(circle at 78% 34%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 30%);
+    }
+    .hero::after {
+      content: "VISUAL SYSTEMS";
+      position: absolute;
+      left: max(22px, 4vw);
+      bottom: 22px;
+      z-index: -1;
+      color: color-mix(in srgb, var(--ink) 5%, transparent);
+      font-size: clamp(76px, 13vw, 190px);
+      line-height: .8;
+      font-weight: 900;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background-image:
+        linear-gradient(color-mix(in srgb, var(--ink) 5.5%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--ink) 5.5%, transparent) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(90deg, rgba(0, 0, 0, .55), transparent 76%);
+    }
+    .hero-inner {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(280px, 480px) minmax(420px, 1fr);
+      align-items: center;
+      gap: clamp(22px, 4vw, 64px);
+      padding: 92px 0 80px;
+    }
+    .identity { position: relative; z-index: 5; }
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 26px;
+      color: var(--muted);
+      font: 800 12px/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .kicker::before { content: ""; width: 32px; height: 2px; background: var(--accent); }
+    h1 {
+      max-width: 9.5ch;
+      margin: 0;
+      font-size: clamp(64px, 10.4vw, 148px);
+      line-height: .82;
+      letter-spacing: 0;
+      font-weight: 920;
+    }
+    h1 span { display: block; }
+    .intro {
+      max-width: 520px;
+      margin: 30px 0 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2vw, 21px);
+      line-height: 1.55;
+      border-left: 3px solid var(--accent);
+      padding-left: 18px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      margin-top: 34px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 20px;
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      color: var(--paper);
+      background: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .button.secondary { color: var(--ink); background: var(--panel); }
+    .visual {
+      position: relative;
+      min-height: min(72vw, 690px);
+      display: grid;
+      place-items: center;
+    }
+    .visual::after {
+      content: "";
+      position: absolute;
+      left: 19%;
+      right: 14%;
+      bottom: 8%;
+      height: 10%;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--ink) 20%, transparent);
+      filter: blur(28px);
+      transform: rotate(-4deg);
+      z-index: 0;
+    }
+    .model-stage {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      min-height: 360px;
+    }
+    .model-stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: var(--model-tint);
+      opacity: var(--model-tint-opacity);
+      mix-blend-mode: var(--model-tint-blend);
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, rgba(0,0,0,.72) 84%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 72%, rgba(0,0,0,.72) 84%, transparent 100%);
+    }
+    .model-stage canvas {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, rgba(0,0,0,.72) 84%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 72%, rgba(0,0,0,.72) 84%, transparent 100%);
+    }
+    .loading {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font: 800 12px/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+    .rail {
+      position: absolute;
+      right: max(20px, 4vw);
+      top: 50%;
+      translate: 0 -50%;
+      display: grid;
+      gap: 16px;
+      color: color-mix(in srgb, var(--ink) 58%, transparent);
+      font: 800 12px/1 var(--mono);
+      writing-mode: vertical-rl;
+      text-transform: uppercase;
+    }
+    .rail span { width: 1px; height: 96px; background: color-mix(in srgb, var(--ink) 22%, transparent); justify-self: center; }
+    .section {
+      padding: clamp(72px, 8vw, 118px) 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .section-inner {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 34px;
+    }
+    .section h2 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 70px);
+      line-height: .9;
+      letter-spacing: 0;
+      font-weight: 900;
+    }
+    .lead {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(18px, 2vw, 24px);
+      line-height: 1.45;
+    }
+    .work-grid, .services-grid, .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .item {
+      min-height: 188px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--panel);
+      position: relative;
+      overflow: hidden;
+    }
+    .item::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    .item strong {
+      display: block;
+      margin-bottom: 48px;
+      font: 900 13px/1.15 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .item p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+      gap: 48px;
+      align-items: start;
+    }
+    .contact {
+      background: var(--dark);
+      color: rgba(255, 255, 255, .88);
+    }
+    .contact .lead { color: rgba(255, 255, 255, .66); }
+    .contact .button { border-color: rgba(255, 255, 255, .9); background: rgba(255, 255, 255, .9); color: #111827; }
+
+    .theme-studio {
+      --ink: #111111;
+      --muted: #454545;
+      --line: rgba(17, 17, 17, .18);
+      --accent: #ff3d24;
+      --accent-2: #111111;
+      --paper: #f4f4f1;
+      --panel: rgba(255, 255, 255, .7);
+      --panel-strong: rgba(255, 255, 255, .9);
+      --dark: #111111;
+      --model-scale: 4.65;
+      --model-x: .08;
+      --model-y: .015;
+      --model-yaw: -.12;
+      --camera-pad: .34;
+      --camera-y: -.26;
+      --camera-use-head: 1;
+      --camera-head-offset-y: .1;
+      --model-tint: #fff7ed;
+      --model-tint-opacity: .08;
+      --model-tint-blend: soft-light;
+    }
+    .theme-studio .site-top span:nth-child(2) { border-radius: 0; background: transparent; }
+    .theme-studio .hero {
+      min-height: 96vh;
+      align-items: stretch;
+      background: linear-gradient(90deg, var(--paper) 0 26%, color-mix(in srgb, var(--accent) 86%, var(--paper)) 26% 76%, var(--paper) 76% 100%);
+    }
+    .theme-studio .hero::before {
+      background-image: none;
+      border: 5px solid var(--ink);
+      inset: max(70px, 8vh) max(42px, 6vw) max(42px, 6vh);
+      border-radius: 22px;
+      mask-image: none;
+    }
+    .theme-studio .hero::after {
+      content: "lab.";
+      left: max(70px, 8vw);
+      bottom: max(58px, 8vh);
+      color: var(--ink);
+      font-size: clamp(90px, 13vw, 190px);
+      opacity: 1;
+    }
+    .theme-studio .hero-inner {
+      position: relative;
+      width: min(1260px, calc(100vw - 64px));
+      min-height: calc(96vh - 112px);
+      margin-top: 76px;
+      margin-bottom: 36px;
+      display: block;
+      padding: 0;
+    }
+    .theme-studio .identity {
+      position: absolute;
+      left: clamp(28px, 4vw, 66px);
+      top: clamp(42px, 8vh, 98px);
+      width: min(36vw, 390px);
+    }
+    .theme-studio h1 { font-size: clamp(52px, 8vw, 108px); max-width: 7ch; }
+    .theme-studio .intro {
+      max-width: 360px;
+      font-size: 15px;
+      line-height: 1.4;
+      background: var(--paper);
+      padding: 14px 16px 14px 0;
+      border-left: 0;
+    }
+    .theme-studio .visual {
+      position: absolute;
+      z-index: 3;
+      right: clamp(10px, 5vw, 92px);
+      bottom: -2vh;
+      width: min(62vw, 760px);
+      height: min(76vh, 780px);
+      min-height: 0;
+      place-items: end center;
+    }
+
+    .theme-graphite {
+      --ink: #171717;
+      --muted: #686868;
+      --line: rgba(23, 23, 23, .14);
+      --accent: #111111;
+      --accent-2: #9a9a9a;
+      --paper: #fbfbfa;
+      --panel: rgba(255, 255, 255, .76);
+      --panel-strong: rgba(255, 255, 255, .94);
+      --dark: #1f1f1f;
+      --model-scale: 4.55;
+      --model-x: -.04;
+      --model-y: 0;
+      --model-yaw: -.46;
+      --camera-pad: .31;
+      --camera-y: -.34;
+      --camera-use-head: 1;
+      --camera-head-offset-y: .12;
+      --model-tint: #ffffff;
+      --model-tint-opacity: .16;
+      --model-tint-blend: soft-light;
+      --head-yaw: .28;
+    }
+    .theme-graphite .hero { min-height: 92vh; background: #fbfbfa; }
+    .theme-graphite .hero::before {
+      background-image:
+        linear-gradient(90deg, rgba(0,0,0,.055) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,.025) 1px, transparent 1px);
+      background-size: 25% 100%, 100% 120px;
+      mask-image: linear-gradient(90deg, rgba(0,0,0,.52), transparent 82%);
+    }
+    .theme-graphite .hero::after {
+      content: "N26";
+      color: rgba(0, 0, 0, .055);
+      right: 4vw;
+      left: auto;
+      bottom: 18vh;
+      font-size: clamp(90px, 16vw, 230px);
+    }
+    .theme-graphite .hero-inner {
+      position: relative;
+      width: min(1220px, calc(100vw - 72px));
+      min-height: 78vh;
+      display: block;
+      padding: 108px 0 70px;
+    }
+    .theme-graphite .identity {
+      position: relative;
+      width: min(54vw, 660px);
+      z-index: 4;
+      padding-top: clamp(60px, 9vh, 92px);
+    }
+    .theme-graphite h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 500;
+      font-size: clamp(62px, 8vw, 124px);
+      line-height: .86;
+      max-width: 7ch;
+    }
+    .theme-graphite .intro {
+      border-left: 0;
+      padding-left: 0;
+      max-width: 500px;
+      font-size: clamp(19px, 1.6vw, 23px);
+      line-height: 1.42;
+    }
+    .theme-graphite .visual {
+      position: absolute;
+      z-index: 2;
+      right: clamp(-170px, -9vw, -72px);
+      top: 58px;
+      width: min(70vw, 920px);
+      height: min(82vh, 860px);
+      min-height: 0;
+      place-items: start center;
+      border: 0;
+      background: transparent;
+    }
+    .theme-graphite .visual::after { display: none; }
+
+    .theme-gallery {
+      color-scheme: dark;
+      --ink: #fff6ef;
+      --muted: rgba(255, 236, 224, .78);
+      --line: rgba(255, 218, 195, .2);
+      --accent: #ff4a16;
+      --accent-2: #d32310;
+      --paper: #140806;
+      --panel: rgba(255, 255, 255, .065);
+      --panel-strong: rgba(255, 255, 255, .1);
+      --dark: #0c0908;
+      --model-scale: 4.7;
+      --model-x: -.08;
+      --model-y: 0;
+      --model-yaw: -.38;
+      --model-pitch: .03;
+      --camera-pad: .36;
+      --camera-y: -.52;
+      --camera-target-y: .72;
+      --camera-use-head: 1;
+      --camera-head-offset-y: .28;
+      --key-light-intensity: 3.2;
+      --fill-light-intensity: 1.15;
+      --plane-light-intensity: 2.15;
+      --model-tint: #ff5a26;
+      --model-tint-opacity: .14;
+      --model-tint-blend: color;
+    }
+    .theme-gallery .site-top span:nth-child(2) {
+      background: rgba(255, 90, 34, .16);
+      border-color: rgba(255, 90, 34, .34);
+    }
+    .theme-gallery .hero {
+      min-height: 96vh;
+      padding: 82px 0 44px;
+      background:
+        radial-gradient(circle at 75% 18%, rgba(255, 78, 22, .82), transparent 25%),
+        radial-gradient(circle at 26% 70%, rgba(160, 30, 10, .56), transparent 34%),
+        linear-gradient(150deg, #3c1109 0%, #170706 46%, #050302 100%);
+    }
+    .theme-gallery .hero::before { background-image: none; }
+    .theme-gallery .hero::after {
+      content: "CREATIVE";
+      color: rgba(255, 90, 34, .1);
+      left: max(30px, 5vw);
+      bottom: 10vh;
+      font-size: clamp(82px, 14vw, 210px);
+    }
+    .theme-gallery .hero-inner {
+      position: relative;
+      width: min(1220px, calc(100vw - 56px));
+      min-height: calc(96vh - 126px);
+      display: block;
+      padding: clamp(38px, 5vw, 66px);
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        linear-gradient(180deg, rgba(255, 74, 22, .62), rgba(255, 74, 22, .16) 52%, rgba(255, 74, 22, 0) 100%),
+        rgba(255, 255, 255, .035);
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      box-shadow: 0 42px 90px rgba(0, 0, 0, .34);
+    }
+    .theme-gallery .identity {
+      position: relative;
+      z-index: 5;
+      width: min(40vw, 470px);
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    .theme-gallery h1 { font-size: clamp(58px, 8.4vw, 118px); max-width: 9ch; }
+    .theme-gallery .intro { border-left-color: var(--accent); }
+    .theme-gallery .visual {
+      position: absolute;
+      z-index: 3;
+      left: 54%;
+      bottom: -4vh;
+      translate: -50% 0;
+      width: min(82vw, 1120px);
+      height: min(100vh, 1060px);
+      min-height: 0;
+      place-items: end center;
+      background: transparent;
+      border: 0;
+    }
+    .theme-gallery .visual::before {
+      content: "";
+      position: absolute;
+      inset: 0 -10% 4% -6%;
+      z-index: 4;
+      pointer-events: none;
+      background: #b94920;
+      mix-blend-mode: color;
+      opacity: .58;
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
+    }
+    .theme-gallery .visual::after {
+      background: rgba(255, 79, 22, .55);
+      bottom: 5%;
+    }
+    .theme-gallery .model-stage canvas {
+      filter: drop-shadow(0 0 34px rgba(255, 88, 30, .26));
+    }
+
+    .theme-signal {
+      --ink: #232326;
+      --muted: #5f5f67;
+      --line: rgba(35, 35, 38, .14);
+      --accent: #ff5d6c;
+      --accent-2: #16b596;
+      --paper: #ffe8ed;
+      --panel: rgba(255, 255, 255, .6);
+      --panel-strong: rgba(255, 255, 255, .88);
+      --dark: #17171a;
+      --model-scale: 4.55;
+      --model-x: 0;
+      --model-y: 0;
+      --model-yaw: -.06;
+      --camera-pad: .31;
+      --camera-y: -.34;
+      --camera-use-head: 1;
+      --camera-head-offset-y: .12;
+    }
+    .theme-signal .site-top span:nth-child(2) {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--paper);
+    }
+    .theme-signal .hero {
+      min-height: 94vh;
+      padding: 82px 0 46px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.26)),
+        linear-gradient(115deg, #fff9f9 0 18%, #ff6973 18% 68%, #ffe8ed 68% 100%);
+    }
+    .theme-signal .hero::before, .theme-signal .hero::after { display: none; }
+    .theme-signal .hero-inner {
+      position: relative;
+      width: min(1180px, calc(100vw - 48px));
+      min-height: calc(94vh - 128px);
+      display: block;
+      padding: clamp(28px, 4vw, 52px);
+      overflow: hidden;
+      isolation: isolate;
+      background: rgba(255,255,255,.46);
+      border: 16px solid rgba(255,255,255,.88);
+      border-radius: 44px;
+    }
+    .theme-signal .model-stage::after {
+      display: none;
+    }
+    .theme-signal .hero-inner::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      left: clamp(10px, 1.8vw, 24px);
+      right: clamp(10px, 1.8vw, 24px);
+      top: 35%;
+      bottom: clamp(10px, 1.8vw, 24px);
+      border-radius: 28px;
+      background: #ff6973;
+    }
+    .theme-signal .identity { position: static; z-index: auto; width: auto; }
+    .theme-signal .kicker {
+      position: absolute;
+      z-index: 5;
+      left: clamp(42px, 5vw, 74px);
+      top: clamp(56px, 8vh, 96px);
+    }
+    .theme-signal h1 {
+      position: absolute;
+      z-index: 1;
+      left: clamp(42px, 5vw, 76px);
+      right: clamp(48px, 6vw, 94px);
+      top: clamp(154px, 20vh, 205px);
+      width: auto;
+      max-width: none;
+      display: grid;
+      grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+      align-items: end;
+      column-gap: clamp(68px, 10vw, 170px);
+      font-size: clamp(80px, 8.8vw, 136px);
+      line-height: .82;
+      color: #000;
+      text-transform: uppercase;
+    }
+    .theme-signal h1 span {
+      min-width: 0;
+      white-space: nowrap;
+    }
+    .theme-signal h1 span:first-child { justify-self: start; }
+    .theme-signal h1 span:last-child { justify-self: end; transform: none; }
+    .theme-signal .intro {
+      position: absolute;
+      z-index: 5;
+      left: clamp(46px, 5.2vw, 82px);
+      top: clamp(236px, 32vh, 306px);
+      width: min(36vw, 390px);
+      font-size: 19px;
+      background: transparent;
+      color: #fff;
+      border: 0;
+      padding: 0;
+    }
+    .theme-signal .visual {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      bottom: -2vh;
+      translate: -50% 0;
+      width: min(70vw, 920px);
+      height: min(82vh, 860px);
+      min-height: 0;
+      place-items: end center;
+    }
+    .theme-signal .visual::after { background: rgba(35, 35, 38, .18); bottom: 4%; }
+    .theme-signal .hero .actions {
+      z-index: 5;
+      position: absolute;
+      left: clamp(46px, 5.2vw, 82px);
+      top: clamp(430px, 52vh, 486px);
+      width: min(42vw, 460px);
+      justify-content: flex-start;
+    }
+    .theme-signal .contact .actions {
+      position: static;
+      display: flex;
+      width: min(100%, 560px);
+      justify-content: flex-start;
+      align-self: flex-start;
+      margin: 26px 0 0;
+      opacity: 1;
+      visibility: visible;
+    }
+    .theme-signal .contact .section-inner > div {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: min(100%, 560px);
+    }
+    .theme-signal .contact .lead {
+      width: min(100%, 560px);
+    }
+    .theme-signal .contact .button {
+      display: inline-flex;
+      opacity: 1;
+      visibility: visible;
+      background: #fff;
+      color: #232326;
+    }
+    .theme-signal .button { border: 0; background: #fff; color: #232326; }
+    .theme-signal .button.secondary { background: #232326; color: #fff; }
+    .signal-card { display: none; }
+    .theme-signal .signal-card {
+      position: absolute;
+      z-index: 5;
+      right: clamp(48px, 6vw, 94px);
+      bottom: clamp(44px, 8vh, 78px);
+      display: block;
+      width: min(22vw, 250px);
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, .86);
+      box-shadow:
+        22px 24px 38px rgba(104, 16, 30, .24),
+        0 18px 34px rgba(97, 17, 24, .16);
+    }
+
+    @media (max-width: 860px) {
+      .site-top {
+        top: 14px;
+        width: min(100vw - 28px, 680px);
+        grid-template-columns: 1fr auto;
+      }
+      .site-top span:first-child { display: none; }
+      .hero-inner,
+      .theme-studio .hero-inner,
+      .theme-graphite .hero-inner,
+      .theme-gallery .hero-inner,
+      .theme-signal .hero-inner {
+        width: min(100vw - 28px, 680px);
+        min-height: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        padding: 64px 18px 32px;
+        margin: 64px auto 24px;
+      }
+      .identity,
+      .theme-studio .identity,
+      .theme-graphite .identity,
+      .theme-gallery .identity,
+      .theme-signal .identity {
+        position: relative;
+        order: 2;
+        width: auto;
+        left: auto;
+        top: auto;
+      }
+      .visual,
+      .theme-studio .visual,
+      .theme-graphite .visual,
+      .theme-gallery .visual,
+      .theme-signal .visual {
+        position: relative;
+        order: 1;
+        left: auto;
+        right: auto;
+        top: auto;
+        bottom: auto;
+        translate: 0 0;
+        width: 100%;
+        height: 52vh;
+        min-height: 420px;
+      }
+      h1, .theme-signal h1 {
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        width: auto;
+        max-width: 10ch;
+        display: block;
+        font-size: clamp(58px, 16vw, 96px);
+      }
+      .theme-signal h1 span:last-child { transform: none; }
+      .intro,
+      .theme-signal .intro {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: auto;
+        max-width: 92vw;
+        color: var(--muted);
+      }
+      .theme-signal .hero .actions {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: auto;
+      }
+      .theme-signal .signal-card {
+        position: relative;
+        order: 3;
+        right: auto;
+        bottom: auto;
+        width: min(54vw, 220px);
+        margin-top: 18px;
+        justify-self: end;
+      }
+      .rail { display: none; }
+      .work-grid, .services-grid, .notes-grid, .split { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./assets/vendor/three/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body class="__TEMPLATE_CLASS__">
+  <nav class="site-top" aria-label="Site">
+    <span>Independent portfolio</span>
+    <span>GLB runtime hero</span>
+    <span>2026</span>
+  </nav>
+  <main class="hero" id="stage">
+    <div class="hero-inner">
+      <section class="identity" aria-label="Profile">
+        <p class="kicker">AI Visual Systems</p>
+        <h1><span>ALEX</span><span>CHEN</span></h1>
+        <p class="intro">I design image workflows, synthetic product worlds, and interfaces where visual tools feel immediate, tactile, and alive.</p>
+        <div class="actions">
+          <a class="button" href="#work">View Work</a>
+          <a class="button secondary" href="#contact">Contact</a>
+          <a class="button" href="mailto:hello@example.com">Email</a>
+        </div>
+      </section>
+      <section class="visual" aria-label="Interactive GLB portrait">
+        <div class="model-stage" data-model-stage></div>
+        <div class="loading" data-loading></div>
+      </section>
+      <img class="signal-card" src="./assets/signal-card-image.png" alt="" loading="eager">
+    </div>
+    <div class="rail">Scroll<span></span></div>
+  </main>
+  <section class="section" id="work">
+    <div class="section-inner">
+      <h2>Selected systems</h2>
+      <p class="lead">Visual products shaped from generated imagery, interaction prototypes, and production-ready frontends.</p>
+      <div class="work-grid">
+        <article class="item"><strong>01 Runtime heroes</strong><p>Compressed GLB models, template-driven scenes, and browser-native interaction.</p></article>
+        <article class="item"><strong>02 Interface motion</strong><p>Mouse-driven head tracking and embedded model animation.</p></article>
+        <article class="item"><strong>03 Delivery systems</strong><p>Plain HTML pages with local assets and predictable deployment.</p></article>
+      </div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="section-inner split">
+      <h2>Process</h2>
+      <div class="notes-grid">
+        <article class="item"><strong>Upload</strong><p>Provide a GLB model with materials and optional animation clips.</p></article>
+        <article class="item"><strong>Template</strong><p>Choose a personal website look and generate a runtime page.</p></article>
+        <article class="item"><strong>Ship</strong><p>Deploy the generated HTML, GLB, and local Three.js assets.</p></article>
+      </div>
+    </div>
+  </section>
+  <section class="section">
+    <div class="section-inner">
+      <h2>Services</h2>
+      <div class="services-grid">
+        <article class="item"><strong>Creative tooling</strong><p>Custom workflows for image generation, model display, and publishing.</p></article>
+        <article class="item"><strong>Frontend prototypes</strong><p>High-fidelity pages that keep interaction and performance in balance.</p></article>
+        <article class="item"><strong>Pipeline design</strong><p>Repeatable model preparation, template generation, and delivery systems.</p></article>
+      </div>
+    </div>
+  </section>
+  <section class="section contact" id="contact">
+    <div class="section-inner split">
+      <h2>Let's build the visual system.</h2>
+      <div>
+        <p class="lead">Bring a model, a product, or a rough visual direction. I will turn it into a usable interface that moves cleanly.</p>
+        <div class="actions"><a class="button" href="mailto:hello@example.com">hello@example.com</a></div>
+      </div>
+    </div>
+  </section>
+  <script type="module">
+    import * as THREE from "three";
+    import { GLTFLoader } from "./assets/vendor/three/examples/jsm/loaders/GLTFLoader.js";
+
+    const MODEL_URL = "./models/__MODEL_FILE__";
+    const SCREEN_VIDEO_FILE = "__SCREEN_VIDEO_FILE__";
+    const SCREEN_VIDEO_URL = SCREEN_VIDEO_FILE ? `./media/${SCREEN_VIDEO_FILE}` : "";
+    const stage = document.getElementById("stage");
+    const wrap = document.querySelector("[data-model-stage]");
+    const loading = document.querySelector("[data-loading]");
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(28, 1, 0.01, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1;
+    wrap.appendChild(renderer.domElement);
+
+    const clock = new THREE.Clock();
+    const root = new THREE.Group();
+    const pivot = new THREE.Group();
+    scene.add(root);
+    root.add(pivot);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0);
+    keyLight.position.set(2.2, 3.6, 4.5);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffd2b8, 0);
+    fillLight.position.set(-3.8, 1.4, 2.4);
+    scene.add(fillLight);
+    const planeLight = new THREE.PointLight(0xff6b2b, 0, 8, 1.65);
+    planeLight.position.set(-1.2, 1.1, 2.1);
+    scene.add(planeLight);
+
+    let model = null;
+    let mixer = null;
+    let headBone = null;
+    let neckBone = null;
+    const headRest = new THREE.Euler();
+    const neckRest = new THREE.Euler();
+    const pointer = { x: 0, y: 0 };
+    const smooth = { x: 0, y: 0 };
+    const idle = { x: 0, y: 0, targetX: 0, targetY: 0, nextAt: 0 };
+    let lastPointerAt = -Infinity;
+      const config = readSceneConfig();
+    keyLight.intensity = config.keyLightIntensity;
+    fillLight.intensity = config.fillLightIntensity;
+    planeLight.intensity = config.planeLightIntensity;
+
+    load();
+    window.addEventListener("resize", resize);
+    stage.addEventListener("pointermove", updatePointer, { passive: true });
+    stage.addEventListener("mouseleave", resetPointer);
+    window.addEventListener("blur", resetPointer);
+    requestAnimationFrame(animate);
+
+    async function load() {
+      try {
+        const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
+        model = gltf.scene;
+        model.traverse((node) => {
+          if (node.isMesh) node.frustumCulled = false;
+          if (node.isLight) node.visible = false;
+          if (node.isSkinnedMesh && node.skeleton) {
+            node.bindMode = "attached";
+            node.skeleton.pose();
+          }
+        });
+        applyScreenVideoTexture(model);
+        bindLookBones();
+        pivot.add(model);
+        fitModel();
+        playAnimations(gltf.animations || []);
+        loading.hidden = true;
+        resize();
+      } catch (error) {
+        loading.textContent = `GLB load failed: ${error.message}`;
+        console.error(error);
+      }
+    }
+
+    function applyScreenVideoTexture(rootObject) {
+      if (!SCREEN_VIDEO_URL) return;
+      const video = document.createElement("video");
+      video.src = SCREEN_VIDEO_URL;
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.crossOrigin = "anonymous";
+      video.preload = "auto";
+
+      const texture = new THREE.VideoTexture(video);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.generateMipmaps = false;
+
+      const videoMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        toneMapped: false,
+      });
+
+      rootObject.traverse((node) => {
+        const name = (node.name || "").toLowerCase();
+        if (node.isMesh && name.includes("plane")) {
+          boostEmissive(node.material, 2.4);
+        }
+        if (name.includes("screen_ref")) {
+          node.visible = false;
+          return;
+        }
+        if (node.isMesh && name.includes("screen")) {
+          node.material = videoMaterial;
+          node.visible = true;
+        }
+      });
+
+      const play = () => video.play().catch(() => {});
+      play();
+      window.addEventListener("pointerdown", play, { once: true });
+    }
+
+    function boostEmissive(material, strength) {
+      const materials = Array.isArray(material) ? material : [material];
+      for (const mat of materials) {
+        if (!mat) continue;
+        if (mat.emissive) {
+          if (mat.color) mat.emissive.copy(mat.color);
+          mat.emissiveIntensity = Math.max(mat.emissiveIntensity || 0, strength);
+          mat.toneMapped = false;
+          mat.needsUpdate = true;
+        }
+      }
+    }
+
+    function playAnimations(clips) {
+      if (!clips.length || !model) return;
+      mixer = new THREE.AnimationMixer(model);
+      for (const sourceClip of clips) {
+        const clip = filterLookBoneTracks(sourceClip);
+        if (!clip.tracks.length) continue;
+        const action = mixer.clipAction(clip);
+        action.reset().setLoop(THREE.LoopRepeat, Infinity).play();
+      }
+    }
+
+    function filterLookBoneTracks(clip) {
+      const lookNames = [headBone?.name, neckBone?.name].filter(Boolean).map((name) => name.toLowerCase());
+      if (!lookNames.length) return clip;
+      const tracks = clip.tracks.filter((track) => {
+        const lower = track.name.toLowerCase();
+        return !lookNames.some((name) => {
+          const ownsBone = lower.startsWith(`${name}.`) || lower.includes(`/${name}.`) || lower.includes(`${name}_`);
+          const rotatesBone = lower.includes(".quaternion") || lower.includes(".rotation");
+          return ownsBone && rotatesBone;
+        });
+      });
+      return new THREE.AnimationClip(clip.name, clip.duration, tracks, clip.blendMode);
+    }
+
+    function fitModel() {
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+      model.scale.setScalar(1);
+
+      const box = getVisibleMeshBox(model);
+      if (box.isEmpty()) return;
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      const maxAxis = Math.max(size.x, size.y, size.z) || 1;
+      const scale = config.modelScale / maxAxis;
+      model.scale.setScalar(scale);
+      model.position.set(
+        -center.x * scale,
+        -center.y * scale - size.y * scale * 0.02,
+        -center.z * scale
+      );
+
+      const fittedHeight = size.y * scale;
+      const fittedWidth = size.x * scale;
+      const fov = THREE.MathUtils.degToRad(camera.fov);
+      const distanceForHeight = fittedHeight / (2 * Math.tan(fov / 2));
+      const distanceForWidth = fittedWidth / (2 * Math.tan(fov / 2) * Math.max(0.65, camera.aspect || 1));
+      const distance = Math.max(distanceForHeight, distanceForWidth) * config.cameraPad;
+
+      let targetY = config.cameraTargetY;
+      if (config.cameraUseHead && headBone) {
+        model.updateWorldMatrix(true, true);
+        const headPosition = new THREE.Vector3();
+        headBone.getWorldPosition(headPosition);
+        targetY = headPosition.y + config.cameraHeadOffsetY;
+      }
+      camera.position.set(0, targetY + config.cameraY, distance);
+      camera.lookAt(0, targetY, 0);
+      root.position.set(config.modelX, config.modelY, 0);
+      root.rotation.set(config.modelPitch, config.modelYaw, 0);
+    }
+
+    function bindLookBones() {
+      const bones = [];
+      model.traverse((node) => {
+        if (node.isBone) bones.push(node);
+      });
+      headBone = bones.find((bone) => /^head$/i.test(bone.name))
+        || bones.find((bone) => /head/i.test(bone.name) && !/end/i.test(bone.name))
+        || null;
+      neckBone = bones.find((bone) => /^neck$/i.test(bone.name))
+        || bones.find((bone) => /neck/i.test(bone.name))
+        || null;
+      if (!headBone && bones.length) {
+        headBone = bones.slice().sort((a, b) =>
+          b.getWorldPosition(new THREE.Vector3()).y - a.getWorldPosition(new THREE.Vector3()).y
+        )[0];
+      }
+      if (headBone) headRest.copy(headBone.rotation);
+      if (neckBone) neckRest.copy(neckBone.rotation);
+    }
+
+    function getVisibleMeshBox(object) {
+      const box = new THREE.Box3();
+      const meshBox = new THREE.Box3();
+      let hasMesh = false;
+      object.updateWorldMatrix(true, true);
+      object.traverse((node) => {
+        if (!node.isMesh || node.visible === false || !node.geometry) return;
+        const material = Array.isArray(node.material) ? node.material[0] : node.material;
+        if (material && material.transparent && material.opacity === 0) return;
+        if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+        meshBox.copy(node.geometry.boundingBox).applyMatrix4(node.matrixWorld);
+        if (!Number.isFinite(meshBox.min.x) || !Number.isFinite(meshBox.max.x)) return;
+        box.union(meshBox);
+        hasMesh = true;
+      });
+      return hasMesh ? box : new THREE.Box3();
+    }
+
+    function resize() {
+      const rect = wrap.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+      if (model) fitModel();
+      render();
+    }
+
+    function updatePointer(event) {
+      const rect = stage.getBoundingClientRect();
+      pointer.x = (((event.clientX - rect.left) / Math.max(1, rect.width)) - 0.5) * 2;
+      pointer.y = (((event.clientY - rect.top) / Math.max(1, rect.height)) - 0.5) * 2;
+      lastPointerAt = performance.now();
+    }
+
+    function resetPointer() {
+      pointer.x = 0;
+      pointer.y = 0;
+      lastPointerAt = -Infinity;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      if (mixer) mixer.update(delta);
+      const now = performance.now();
+      const usingPointer = now - lastPointerAt < 1400;
+      const target = usingPointer ? pointer : updateIdleLook(now);
+      smooth.x += (target.x - smooth.x) * 0.045;
+      smooth.y += (target.y - smooth.y) * 0.045;
+      applyHeadLook();
+      render();
+    }
+
+    function updateIdleLook(now) {
+      if (now > idle.nextAt) {
+        idle.targetX = THREE.MathUtils.randFloatSpread(0.52);
+        idle.targetY = THREE.MathUtils.randFloat(-0.2, 0.16);
+        idle.nextAt = now + THREE.MathUtils.randFloat(2600, 5200);
+      }
+      idle.x += (idle.targetX - idle.x) * 0.018;
+      idle.y += (idle.targetY - idle.y) * 0.018;
+      return idle;
+    }
+
+    function applyHeadLook() {
+      if (!headBone && !neckBone) return;
+      const yaw = THREE.MathUtils.clamp(smooth.x, -1, 1) * config.headYaw;
+      const pitch = THREE.MathUtils.clamp(smooth.y, -1, 1) * config.headPitch;
+      if (neckBone) {
+        neckBone.rotation.y += ((neckRest.y + yaw * config.neckYaw) - neckBone.rotation.y) * 0.16;
+        neckBone.rotation.x += ((neckRest.x + pitch * config.neckPitch) - neckBone.rotation.x) * 0.16;
+      }
+      if (headBone) {
+        headBone.rotation.y += ((headRest.y + yaw) - headBone.rotation.y) * 0.18;
+        headBone.rotation.x += ((headRest.x + pitch) - headBone.rotation.x) * 0.18;
+      }
+    }
+
+    function render() {
+      if (model) model.updateMatrixWorld(true);
+      renderer.render(scene, camera);
+    }
+
+    function readSceneConfig() {
+      const styles = getComputedStyle(document.body);
+      const read = (name, fallback) => {
+        const value = parseFloat(styles.getPropertyValue(name));
+        return Number.isFinite(value) ? value : fallback;
+      };
+      return {
+        modelScale: read("--model-scale", 4.5),
+        modelX: read("--model-x", 0),
+        modelY: read("--model-y", 0),
+        modelYaw: read("--model-yaw", -0.18),
+        modelPitch: read("--model-pitch", 0.035),
+        cameraPad: read("--camera-pad", 0.74),
+        cameraY: read("--camera-y", 0.02),
+        cameraTargetY: read("--camera-target-y", 0.04),
+        cameraUseHead: read("--camera-use-head", 0),
+        cameraHeadOffsetY: read("--camera-head-offset-y", -0.08),
+        keyLightIntensity: read("--key-light-intensity", 0),
+        fillLightIntensity: read("--fill-light-intensity", 0),
+        planeLightIntensity: read("--plane-light-intensity", 0),
+        headYaw: read("--head-yaw", 0.34),
+        headPitch: read("--head-pitch", 0.22),
+        neckYaw: read("--neck-yaw", 0.32),
+        neckPitch: read("--neck-pitch", 0.22),
+      };
+    }
+  </script>
+</body>
+</html>
