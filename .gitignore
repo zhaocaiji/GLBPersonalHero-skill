@@ -7,3 +7,4 @@ gcm-diagnose.log
 *.log
 __pycache__/
 *.pyc
+.preview_server_pid
