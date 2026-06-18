@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import struct
 from pathlib import Path
 
 
@@ -29,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--email", default="hello@example.com")
     parser.add_argument("--screen-video", default="", help="Optional MP4/WebM video texture for meshes named screen/screen_ref.")
     parser.add_argument("--port", type=int, default=18788, help="Preview bat server port.")
+    parser.add_argument("--no-sanitize-texture-channels", action="store_true", help="Do not force texture channels above 0 back to 0 in the runtime page.")
     return parser.parse_args()
 
 
@@ -46,6 +48,60 @@ def resolve_optional_file(file_path: str) -> Path | None:
     if not path.is_absolute():
         path = Path.cwd() / path
     return path.resolve()
+
+
+def read_glb_json(model: Path) -> dict:
+    data = model.read_bytes()
+    if len(data) < 20 or data[:4] != b"glTF":
+        return {}
+    offset = 12
+    while offset + 8 <= len(data):
+        chunk_length, chunk_type = struct.unpack_from("<II", data, offset)
+        offset += 8
+        chunk = data[offset : offset + chunk_length]
+        offset += chunk_length
+        if chunk_type == 0x4E4F534A:
+            return json.loads(chunk.decode("utf-8"))
+    return {}
+
+
+def inspect_glb(model: Path) -> dict:
+    gltf = read_glb_json(model)
+    nodes = gltf.get("nodes", [])
+    meshes = gltf.get("meshes", [])
+    materials = gltf.get("materials", [])
+    animations = gltf.get("animations", [])
+
+    node_names = [node.get("name", "") for node in nodes]
+    screen_nodes = [name for name in node_names if "screen" in name.lower() and "screen_ref" not in name.lower()]
+    screen_ref_nodes = [name for name in node_names if "screen_ref" in name.lower()]
+    head_bones = [name for name in node_names if "head" in name.lower() and "end" not in name.lower()]
+    neck_bones = [name for name in node_names if "neck" in name.lower()]
+
+    tex_channel_hits: list[dict] = []
+    for material_index, material in enumerate(materials):
+        material_name = material.get("name", f"material_{material_index}")
+        for slot in ("baseColorTexture", "metallicRoughnessTexture"):
+            texture_info = material.get("pbrMetallicRoughness", {}).get(slot)
+            if isinstance(texture_info, dict) and texture_info.get("texCoord", 0) > 0:
+                tex_channel_hits.append({"material": material_name, "slot": slot, "texCoord": texture_info.get("texCoord")})
+        for slot in ("normalTexture", "occlusionTexture", "emissiveTexture"):
+            texture_info = material.get(slot)
+            if isinstance(texture_info, dict) and texture_info.get("texCoord", 0) > 0:
+                tex_channel_hits.append({"material": material_name, "slot": slot, "texCoord": texture_info.get("texCoord")})
+
+    return {
+        "node_count": len(nodes),
+        "mesh_count": len(meshes),
+        "material_count": len(materials),
+        "animation_count": len(animations),
+        "animation_names": [animation.get("name", f"animation_{index}") for index, animation in enumerate(animations)],
+        "head_bone_candidates": head_bones,
+        "neck_bone_candidates": neck_bones,
+        "screen_mesh_candidates": screen_nodes,
+        "screen_ref_candidates": screen_ref_nodes,
+        "texture_channels_above_0": tex_channel_hits,
+    }
 
 
 def write_start_bat(out_dir: Path, html_name: str, port: int, bat_name: str = "start_preview.bat") -> None:
@@ -82,6 +138,8 @@ if errorlevel 1 (
 
 set "URL=http://localhost:%PORT%/%PAGE%"
 echo URL : %URL%
+> "%ROOT%.preview-url" echo %URL%
+> "%ROOT%preview_url.txt" echo %URL%
 echo.
 
 where py >nul 2>nul
@@ -112,30 +170,52 @@ pause
     (out_dir / bat_name).write_text(bat, encoding="utf-8")
 
 
-def render_html(template_name: str, model_name: str, title: str, email: str, screen_video_name: str = "") -> str:
+def render_html(template_name: str, model_name: str, title: str, email: str, screen_video_name: str = "", sanitize_texture_channels: bool = True) -> str:
     html = TEMPLATE.read_text(encoding="utf-8")
     html = html.replace("__TEMPLATE_CLASS__", TEMPLATE_CLASSES[template_name])
     html = html.replace("__MODEL_FILE__", model_name)
     html = html.replace("__SCREEN_VIDEO_FILE__", screen_video_name)
+    html = html.replace("__SANITIZE_TEXTURE_CHANNELS__", "true" if sanitize_texture_channels else "false")
     html = html.replace("Alex Chen", title)
     html = html.replace("hello@example.com", email)
     return html
 
 
-def write_metadata(out_dir: Path, prefix: str, template_name: str, model: Path, html_name: str, screen_video: Path | None) -> None:
+def write_metadata(
+    out_dir: Path,
+    prefix: str,
+    template_name: str,
+    model: Path,
+    html_name: str,
+    screen_video: Path | None,
+    port: int,
+    glb_info: dict,
+    sanitize_texture_channels: bool,
+) -> None:
     metadata = {
         "model": model.name,
         "source_model": str(model),
         "screen_video": screen_video.name if screen_video else "",
         "source_screen_video": str(screen_video) if screen_video else "",
+        "screen_video_requested": bool(screen_video),
+        "screen_mesh_candidates": glb_info.get("screen_mesh_candidates", []),
+        "screen_ref_candidates": glb_info.get("screen_ref_candidates", []),
         "template": template_name,
         "html": html_name,
+        "preview_url_file": "preview_url.txt",
+        "preview_url": f"http://localhost:{port}/{html_name}",
         "runtime": "three-gltf",
         "animation": "auto-play glTF animation clips",
+        "animation_count": glb_info.get("animation_count", 0),
+        "animation_names": glb_info.get("animation_names", []),
         "head_tracking": "Head/Neck bones, mouse-driven, mouse wins over animation rotation tracks",
-        "lighting": "none added by page; loaded GLB lights disabled",
+        "head_bone_candidates": glb_info.get("head_bone_candidates", []),
+        "neck_bone_candidates": glb_info.get("neck_bone_candidates", []),
+        "lighting": "page adds template-controlled key/fill/plane lights; loaded GLB lights are hidden",
         "tone_mapping": "THREE.ACESFilmicToneMapping",
         "exposure": 1,
+        "sanitize_texture_channels": sanitize_texture_channels,
+        "texture_channels_above_0": glb_info.get("texture_channels_above_0", []),
     }
     (out_dir / f"{prefix}_{template_name}.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -209,6 +289,7 @@ def main() -> None:
         raise ValueError("GLBPersonalHero expects a .glb file.")
     if not TEMPLATE.exists():
         raise FileNotFoundError(TEMPLATE)
+    glb_info = inspect_glb(model)
 
     out_dir = Path(args.out_dir)
     if not out_dir.is_absolute():
@@ -238,10 +319,17 @@ def main() -> None:
     for template_name in templates:
         html_name = f"{args.prefix}_{template_name}.html"
         (out_dir / html_name).write_text(
-            render_html(template_name, model.name, args.title, args.email, runtime_screen_video.name if runtime_screen_video else ""),
+            render_html(
+                template_name,
+                model.name,
+                args.title,
+                args.email,
+                runtime_screen_video.name if runtime_screen_video else "",
+                not args.no_sanitize_texture_channels,
+            ),
             encoding="utf-8",
         )
-        write_metadata(out_dir, args.prefix, template_name, model, html_name, screen_video)
+        write_metadata(out_dir, args.prefix, template_name, model, html_name, screen_video, args.port, glb_info, not args.no_sanitize_texture_channels)
         write_start_bat(out_dir, html_name, args.port, f"start_{template_name}.bat")
         generated_html.append(html_name)
 
@@ -254,8 +342,16 @@ def main() -> None:
     print(f"model={runtime_model}")
     if runtime_screen_video:
         print(f"screen_video={runtime_screen_video}")
+    print(f"animations={glb_info.get('animation_count', 0)}")
+    print(f"head_bones={', '.join(glb_info.get('head_bone_candidates', [])) or 'none'}")
+    print(f"neck_bones={', '.join(glb_info.get('neck_bone_candidates', [])) or 'none'}")
+    print(f"screen_meshes={', '.join(glb_info.get('screen_mesh_candidates', [])) or 'none'}")
+    print(f"screen_ref={', '.join(glb_info.get('screen_ref_candidates', [])) or 'none'}")
+    if glb_info.get("texture_channels_above_0"):
+        print("texture_channel_sanitize=enabled")
     print(f"index={out_dir / 'index.html'}")
     print(f"start={out_dir / 'start_preview.bat'}")
+    print(f"preview_url_file={out_dir / 'preview_url.txt'}")
 
 
 if __name__ == "__main__":

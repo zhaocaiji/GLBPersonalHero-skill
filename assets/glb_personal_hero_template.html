@@ -905,6 +905,7 @@
     const MODEL_URL = "./models/__MODEL_FILE__";
     const SCREEN_VIDEO_FILE = "__SCREEN_VIDEO_FILE__";
     const SCREEN_VIDEO_URL = SCREEN_VIDEO_FILE ? `./media/${SCREEN_VIDEO_FILE}` : "";
+    const SANITIZE_TEXTURE_CHANNELS = __SANITIZE_TEXTURE_CHANNELS__;
     const stage = document.getElementById("stage");
     const wrap = document.querySelector("[data-model-stage]");
     const loading = document.querySelector("[data-loading]");
@@ -966,11 +967,20 @@
             node.skeleton.pose();
           }
         });
-        applyScreenVideoTexture(model);
+        const sanitizedTextures = sanitizeTextureChannels(model);
+        const screenReport = applyScreenVideoTexture(model);
         bindLookBones();
         pivot.add(model);
         fitModel();
         playAnimations(gltf.animations || []);
+        console.info("[GLBPersonalHero]", {
+          model: MODEL_URL,
+          animations: (gltf.animations || []).map((clip) => clip.name),
+          headBone: headBone?.name || "",
+          neckBone: neckBone?.name || "",
+          sanitizedTextures,
+          screenReport,
+        });
         loading.hidden = true;
         resize();
       } catch (error) {
@@ -980,7 +990,8 @@
     }
 
     function applyScreenVideoTexture(rootObject) {
-      if (!SCREEN_VIDEO_URL) return;
+      const report = { applied: false, screenMeshes: [], hiddenScreenRefs: [] };
+      if (!SCREEN_VIDEO_URL) return report;
       const video = document.createElement("video");
       video.src = SCREEN_VIDEO_URL;
       video.loop = true;
@@ -1009,17 +1020,66 @@
         }
         if (name.includes("screen_ref")) {
           node.visible = false;
+          report.hiddenScreenRefs.push(node.name || "(unnamed)");
           return;
         }
         if (node.isMesh && name.includes("screen")) {
           node.material = videoMaterial;
           node.visible = true;
+          report.applied = true;
+          report.screenMeshes.push(node.name || "(unnamed)");
         }
       });
 
       const play = () => video.play().catch(() => {});
       play();
       window.addEventListener("pointerdown", play, { once: true });
+      return report;
+    }
+
+    function sanitizeTextureChannels(rootObject) {
+      if (!SANITIZE_TEXTURE_CHANNELS) return [];
+      const hits = [];
+      rootObject.traverse((node) => {
+        if (!node.isMesh || !node.material) return;
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        for (const material of materials) {
+          if (!material) continue;
+          const slots = [
+            "map",
+            "normalMap",
+            "roughnessMap",
+            "metalnessMap",
+            "aoMap",
+            "emissiveMap",
+            "alphaMap",
+            "bumpMap",
+            "displacementMap",
+            "lightMap",
+            "clearcoatMap",
+            "clearcoatNormalMap",
+            "clearcoatRoughnessMap",
+            "iridescenceMap",
+            "iridescenceThicknessMap",
+            "sheenColorMap",
+            "sheenRoughnessMap",
+            "specularColorMap",
+            "specularIntensityMap",
+            "transmissionMap",
+            "thicknessMap",
+          ];
+          for (const slot of slots) {
+            const texture = material[slot];
+            if (texture && Number.isFinite(texture.channel) && texture.channel !== 0) {
+              hits.push({ mesh: node.name || "(unnamed)", material: material.name || "(unnamed)", slot, channel: texture.channel });
+              texture.channel = 0;
+              texture.needsUpdate = true;
+              material.needsUpdate = true;
+            }
+          }
+        }
+      });
+      return hits;
     }
 
     function boostEmissive(material, strength) {
