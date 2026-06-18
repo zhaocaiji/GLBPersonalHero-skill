@@ -7,10 +7,24 @@ description: Generate a personal website hero directly driven by a provided GLB 
 
 Use this workflow to turn a user-provided `.glb` model into a runtime personal website. The final page loads the GLB directly, plays embedded animation clips, and drives Head/Neck bones with the mouse when those bones exist.
 
+## Interaction Rules
+
+- Reply to the user in Chinese by default, including template selection, progress updates, delivery notes, and troubleshooting.
+- Before asking the user to choose a template, display all four preview images, not just text names. Use Markdown image syntax or the host app's local image display feature when available:
+
+```markdown
+![gallery](<skill-folder>/assets/template-previews/gallery.png)
+![studio](<skill-folder>/assets/template-previews/studio.png)
+![graphite](<skill-folder>/assets/template-previews/graphite.png)
+![signal](<skill-folder>/assets/template-previews/signal.png)
+```
+
+- If the environment cannot render local images inline, provide the four image file paths and explicitly tell the user to open them before choosing. Do not proceed from text-only template names unless the user explicitly says they do not need previews.
+
 ## Workflow
 
 1. Get the `.glb` path from the user.
-2. Before running the generator, always present the four template choices: `studio`, `graphite`, `gallery`, and `signal`. Show or reference the preview images in `assets/template-previews/` when the environment can display local images. Ask the user to choose one template. Do not silently default unless the user explicitly says they do not care, asks you to choose, or requests `all`.
+2. Before running the generator, present the four template preview images from `assets/template-previews/`, then ask the user to choose one template: `studio`, `graphite`, `gallery`, or `signal`. Do not silently default unless the user explicitly says they do not care, asks you to choose, or requests `all`.
 3. After installing this skill from GitHub, verify that both `scripts/` and `assets/` exist. If the checkout only contains root files because sparse checkout is enabled, run `git sparse-checkout disable` in the installed skill repository before continuing.
 4. Run the bundled generator:
 
